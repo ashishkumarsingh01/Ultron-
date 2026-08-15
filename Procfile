@@ -1,1 +1,1 @@
-web: uvicorn ultron.web.server:UltronServer --host 0.0.0.0 --port $PORT
+web: gunicorn "ultron.web.app:app" --worker-class uvicorn.workers.UvicornWorker
