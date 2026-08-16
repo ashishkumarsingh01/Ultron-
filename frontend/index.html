@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ULTRON // AGENT KERNEL</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#03060a;
+    --bg-deep:#010203;
+    --panel:rgba(6,14,20,0.62);
+    --panel-border:rgba(79,216,255,0.22);
+    --cyan:#59e0ff;
+    --cyan-dim:#1c6b85;
+    --cyan-glow:rgba(89,224,255,0.55);
+    --amber:#ffb454;
+    --amber-dim:#8a5a1f;
+    --red:#ff5c5c;
+    --text:#cdeaf5;
+    --text-dim:#5c7f8c;
+    --text-faint:#33505c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);overflow:hidden;}
+  body{
+    font-family:'Share Tech Mono', monospace;
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    position:relative;
+  }
+  .display{
+    color:var(--text-faint);
+    -webkit-user-select:none;
+    user-select:none;
+  }
+
+  /* ---------- background ---------- */
+  #bgcanvas{position:fixed;inset:0;z-index:0;opacity:0.7;}
+  .vignette{
+    position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 40%, rgba(1,2,4,0.85) 100%);
+  }
+  .scanlines{
+    position:fixed;inset:0;z-index:5;pointer-events:none;
+    background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 2px, transparent 3px);
+    mix-blend-mode:overlay;
+  }
+
+  .app{
+    position:relative;z-index:2;
+    height:100vh;width:100vw;
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    padding:18px 22px 14px;
+    gap:10px;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    border-bottom:1px solid var(--panel-border);
+    padding-bottom:10px;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand-mark{
+    width:34px;height:34px;border:1.5px solid var(--cyan);border-radius:50%;
+    position:relative;flex:none;
+  }
+  .brand-mark::before{
+    content:'';position:absolute;inset:6px;border:1px solid var(--cyan-dim);border-radius:50%;
+  }
+  .brand-mark::after{
+    content:'';position:absolute;inset:14px;background:var(--cyan);border-radius:50%;
+    box-shadow:0 0 10px 2px var(--cyan-glow);
+  }
+  .brand-text h1{
+    font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;letter-spacing:6px;
+    margin:0;color:var(--text);text-shadow:0 0 14px var(--cyan-glow);
+  }
+  .brand-text .sub{
+    font-size:10px;letter-spacing:3px;color:var(--text-dim);margin-top:2px;
+  }
+  .header-right{text-align:right;font-size:11px;letter-spacing:1px;color:var(--text-dim);}
+  .clock{font-family:'Orbitron',sans-serif;font-size:20px;color:var(--cyan);letter-spacing:2px;}
+  .status-pill{
+    display:inline-flex;align-items:center;gap:6px;margin-top:4px;
+    padding:2px 9px;border:1px solid var(--panel-border);border-radius:2px;font-size:10px;letter-spacing:2px;
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px 1px var(--cyan-glow);animation:pulse 2s infinite ease-in-out;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+
+  /* ---------- main grid ---------- */
+  main{
+    display:grid;
+    grid-template-columns:250px 1fr 250px;
+    gap:14px;
+    min-height:0;
+  }
+  .col{display:flex;flex-direction:column;gap:12px;min-height:0;}
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:2px;
+    padding:12px 13px;
+    position:relative;
+  }
+  .panel::before,.panel::after{
+    content:'';position:absolute;width:8px;height:8px;border-color:var(--cyan);opacity:0.7;
+  }
+  .panel::before{top:-1px;left:-1px;border-top:1.5px solid;border-left:1.5px solid;}
+  .panel::after{bottom:-1px;right:-1px;border-bottom:1.5px solid;border-right:1.5px solid;}
+  .panel h2{
+    font-family:'Orbitron',sans-serif;font-size:10.5px;letter-spacing:2.5px;
+    color:var(--cyan);margin:0 0 10px;font-weight:700;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .panel h2 span.n{color:var(--text-faint);font-family:'Share Tech Mono',monospace;font-size:9px;}
+
+  .module-row{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:11px;padding:6px 0;border-bottom:1px solid rgba(79,216,255,0.08);
+  }
+  .module-row:last-child{border-bottom:none;}
+  .module-name{color:var(--text);letter-spacing:0.5px;}
+  .module-file{display:block;font-size:9px;color:var(--text-faint);margin-top:1px;}
+  .bar-wrap{width:52px;height:4px;background:rgba(79,216,255,0.08);position:relative;overflow:hidden;}
+  .bar-fill{position:absolute;left:0;top:0;bottom:0;background:var(--cyan);box-shadow:0 0 4px var(--cyan-glow);transition:width 0.6s ease;}
+
+  .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .metric{border:1px solid rgba(79,216,255,0.12);padding:8px;text-align:center;}
+  .metric .val{font-family:'Orbitron',sans-serif;font-size:17px;color:var(--cyan);text-shadow:0 0 8px var(--cyan-glow);}
+  .metric .lbl{font-size:8.5px;letter-spacing:1.5px;color:var(--text-dim);margin-top:3px;}
+
+  .plugin-tag{
+    display:inline-block;font-size:9.5px;padding:3px 7px;margin:2px 3px 0 0;
+    border:1px solid var(--panel-border);color:var(--text-dim);letter-spacing:0.5px;
+  }
+  .plugin-tag.active{color:var(--amber);border-color:var(--amber-dim);}
+
+  /* ---------- center core ---------- */
+  .core-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:0;position:relative;}
+  .core-stage{
+    flex:1;width:100%;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;
+  }
+  #corecanvas{width:100%;height:100%;max-height:100%;}
+  .core-caption{
+    position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
+    text-align:center;font-size:10px;letter-spacing:3px;color:var(--text-dim);
+  }
+  .core-caption .state{color:var(--cyan);font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:4px;text-shadow:0 0 10px var(--cyan-glow);}
+
+  /* ---------- console ---------- */
+  .console{
+    grid-column:1/-1;
+    background:var(--panel);border:1px solid var(--panel-border);
+    padding:10px 14px;display:flex;flex-direction:column;gap:6px;
+    max-height:150px;
+  }
+  .console-log{
+    flex:1;overflow-y:auto;font-size:11.5px;line-height:1.65;min-height:60px;max-height:96px;
+    padding-right:4px;
+  }
+  .console-log::-webkit-scrollbar{width:4px;}
+  .console-log::-webkit-scrollbar-thumb{background:var(--cyan-dim);}
+  .log-line{white-space:pre-wrap;word-break:break-word;}
+  .log-line .tag{color:var(--text-faint);}
+  .log-line.user .tag{color:var(--amber);}
+  .log-line.user .msg{color:var(--text);}
+  .log-line.system .tag{color:var(--cyan);}
+  .log-line.system .msg{color:var(--text-dim);}
+  .log-line.think .msg{color:var(--text-faint);font-style:italic;}
+
+  .console-input{
+    display:flex;align-items:center;gap:8px;border-top:1px solid rgba(79,216,255,0.15);padding-top:7px;
+  }
+  .console-input .prompt{color:var(--amber);font-size:13px;}
+  .console-input input{
+    flex:1;background:transparent;border:none;outline:none;
+    font-family:'Share Tech Mono',monospace;color:var(--text);font-size:13px;letter-spacing:0.5px;
+  }
+  .console-input input::placeholder{color:var(--text-faint);}
+  .hint{font-size:9px;color:var(--text-faint);letter-spacing:1px;}
+
+  @media (max-width:920px){
+    main{grid-template-columns:1fr;}
+    .col{flex-direction:row;flex-wrap:wrap;}
+    .panel{flex:1;min-width:150px;}
+    .core-col{order:-1;height:280px;}
+  }
+
+  ::selection{background:var(--cyan-dim);color:#fff;}
+</style>
+</head>
+<body>
+
+<canvas id="bgcanvas"></canvas>
+<div class="vignette"></div>
+<div class="scanlines"></div>
+
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <h1>ULTRON</h1>
+        <div class="sub">AUTONOMOUS AGENT KERNEL &nbsp;·&nbsp; BUILD 0.9-ULTRON-</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="clock" id="clock">00:00:00</div>
+      <div id="dateline" class="display" style="font-size:10px;letter-spacing:2px;margin-top:2px;">—</div>
+      <div class="status-pill"><span class="dot"></span> KERNEL ONLINE</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT: core modules -->
+    <div class="col">
+      <div class="panel">
+        <h2>CORE MODULES <span class="n">03</span></h2>
+        <div class="module-row">
+          <div><div class="module-name">BRAIN</div><span class="module-file">core/brain.py</span></div>
+          <div class="bar-wrap"><div class="bar-fill" id="bar-brain" style="width:70%"></div></div>
+        </div>
+        <div class="module-row">
+          <div><div class="module-name">MEMORY</div><span class="module-file">core/memory.py</span></div>
+          <div class="bar-wrap"><div class="bar-fill" id="bar-memory" style="width:45%"></div></div>
+        </div>
+        <div class="module-row">
+          <div><div class="module-name">PLANNER</div><span class="module-file">core/planner.py</span></div>
+          <div class="bar-wrap"><div class="bar-fill" id="bar-planner" style="width:20%"></div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>INTERFACES <span class="n">04</span></h2>
+        <div class="module-row"><div class="module-name">🎤 VOICE</div><span class="module-file" style="color:var(--cyan)">READY</span></div>
+        <div class="module-row"><div class="module-name">👁 VISION</div><span class="module-file" style="color:var(--cyan)">READY</span></div>
+        <div class="module-row"><div class="module-name">🌐 WEB</div><span class="module-file" style="color:var(--cyan)">READY</span></div>
+        <div class="module-row"><div class="module-name">💬 TEXT</div><span class="module-file" style="color:var(--amber)">ACTIVE</span></div>
+      </div>
+
+      <div class="panel" style="flex:1;">
+        <h2>MEMORY VECTOR STORE</h2>
+        <div class="metric-grid">
+          <div class="metric"><div class="val" id="vecCount">18,204</div><div class="lbl">EMBEDDINGS</div></div>
+          <div class="metric"><div class="val" id="vecLatency">42ms</div><div class="lbl">RETRIEVAL</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: core visual -->
+    <div class="col core-col">
+      <div class="core-stage">
+        <canvas id="corecanvas"></canvas>
+        <div class="core-caption">
+          <div class="state" id="coreState">IDLE</div>
+          <div>AGENT LOOP · AWAITING DIRECTIVE</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: control + plugins -->
+    <div class="col">
+      <div class="panel">
+        <h2>CONTROL SYSTEMS <span class="n">03</span></h2>
+        <div class="module-row"><div><div class="module-name">COMPUTER</div><span class="module-file">control/computer.py</span></div><span style="color:var(--cyan);font-size:9px;">ARMED</span></div>
+        <div class="module-row"><div><div class="module-name">ANDROID</div><span class="module-file">control/android.py</span></div><span style="color:var(--text-faint);font-size:9px;">STANDBY</span></div>
+        <div class="module-row"><div><div class="module-name">DEVELOPER</div><span class="module-file">control/developer.py</span></div><span style="color:var(--cyan);font-size:9px;">ARMED</span></div>
+      </div>
+
+      <div class="panel">
+        <h2>PLUGIN ECOSYSTEM <span class="n">06</span></h2>
+        <div>
+          <span class="plugin-tag active">web.search</span>
+          <span class="plugin-tag active">code.exec</span>
+          <span class="plugin-tag">file.io</span>
+          <span class="plugin-tag">shell.cmd</span>
+          <span class="plugin-tag">ocr.scan</span>
+          <span class="plugin-tag">tts.speak</span>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:1;">
+        <h2>SYSTEM LOAD</h2>
+        <div class="metric-grid">
+          <div class="metric"><div class="val" id="cpuLoad">31%</div><div class="lbl">CPU</div></div>
+          <div class="metric"><div class="val" id="taskQueue">0</div><div class="lbl">QUEUED TASKS</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONSOLE -->
+    <div class="console">
+      <div class="console-log" id="log"></div>
+      <div class="console-input">
+        <span class="prompt">&gt;</span>
+        <input id="cmdInput" type="text" placeholder="Issue a directive to ULTRON…" autocomplete="off">
+        <span class="hint">ENTER TO EXECUTE</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ================= CLOCK ================= */
+function tick(){
+  const d = new Date();
+  document.getElementById('clock').textContent = d.toLocaleTimeString('en-GB');
+  document.getElementById('dateline').textContent = d.toLocaleDateString('en-US',{weekday:'long', month:'short', day:'numeric', year:'numeric'}).toUpperCase();
+}
+tick(); setInterval(tick,1000);
+
+/* ================= BACKGROUND STARFIELD ================= */
+const bg = document.getElementById('bgcanvas');
+const bctx = bg.getContext('2d');
+let stars = [];
+function sizeBg(){
+  bg.width = window.innerWidth; bg.height = window.innerHeight;
+  stars = [];
+  const n = Math.floor((bg.width*bg.height)/9000);
+  for(let i=0;i<n;i++){
+    stars.push({x:Math.random()*bg.width, y:Math.random()*bg.height, r:Math.random()*1.3+0.2, s:Math.random()*0.5+0.15, p:Math.random()*Math.PI*2});
+  }
+}
+window.addEventListener('resize', sizeBg);
+sizeBg();
+function drawBg(t){
+  bctx.clearRect(0,0,bg.width,bg.height);
+  bctx.fillStyle = '#03060a';
+  bctx.fillRect(0,0,bg.width,bg.height);
+  for(const st of stars){
+    const tw = 0.5 + 0.5*Math.sin(t*0.001*st.s + st.p);
+    bctx.globalAlpha = tw*0.8;
+    bctx.fillStyle = '#8fd8ff';
+    bctx.beginPath();
+    bctx.arc(st.x, st.y, st.r, 0, Math.PI*2);
+    bctx.fill();
+  }
+  bctx.globalAlpha = 1;
+  requestAnimationFrame(drawBg);
+}
+requestAnimationFrame(drawBg);
+
+/* ================= CORE HUD VISUAL ================= */
+const core = document.getElementById('corecanvas');
+const cctx = core.getContext('2d');
+let cw=0, ch=0, dpr = window.devicePixelRatio||1;
+function sizeCore(){
+  const rect = core.parentElement.getBoundingClientRect();
+  cw = rect.width; ch = rect.height;
+  core.width = cw*dpr; core.height = ch*dpr;
+  core.style.width = cw+'px'; core.style.height = ch+'px';
+  cctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', sizeCore);
+setTimeout(sizeCore, 50);
+
+let agentState = 'idle'; // idle | thinking | executing
+const stateColor = {idle:'#59e0ff', thinking:'#ffb454', executing:'#ff8a3d'};
+const stateSpeed = {idle:1, thinking:2.6, executing:1.8};
+
+function drawCore(t){
+  if(cw===0){ requestAnimationFrame(drawCore); return; }
+  cctx.clearRect(0,0,cw,ch);
+  const cx = cw/2, cy = ch/2;
+  const R = Math.min(cw,ch)*0.36;
+  const color = stateColor[agentState];
+  const speed = stateSpeed[agentState];
+  const time = t*0.001*speed;
+
+  // outer tick ring
+  cctx.save();
+  cctx.translate(cx,cy);
+  cctx.strokeStyle = color; cctx.globalAlpha = 0.55;
+  cctx.lineWidth = 1;
+  for(let i=0;i<72;i++){
+    const a = (i/72)*Math.PI*2 + time*0.15;
+    const len = i%6===0 ? 10 : 4;
+    const r1 = R*1.32;
+    cctx.beginPath();
+    cctx.moveTo(Math.cos(a)*r1, Math.sin(a)*r1);
+    cctx.lineTo(Math.cos(a)*(r1+len), Math.sin(a)*(r1+len));
+    cctx.stroke();
+  }
+  cctx.restore();
+
+  // rotating dashed rings
+  [1.18, 1.0, 0.8].forEach((mult, i)=>{
+    cctx.save();
+    cctx.translate(cx,cy);
+    cctx.rotate(time*(i%2===0?0.25:-0.32));
+    cctx.strokeStyle = color;
+    cctx.globalAlpha = 0.35 - i*0.06;
+    cctx.lineWidth = i===1?2:1;
+    cctx.setLineDash(i===1?[2,10]:[14,8]);
+    cctx.beginPath();
+    cctx.arc(0,0,R*mult,0,Math.PI*2);
+    cctx.stroke();
+    cctx.restore();
+  });
+
+  // radar sweep
+  cctx.save();
+  cctx.translate(cx,cy);
+  cctx.rotate(time*1.1);
+  const grad = cctx.createConicGradient ? cctx.createConicGradient(0,0,0) : null;
+  cctx.beginPath();
+  cctx.moveTo(0,0);
+  const sweepW = 0.55;
+  cctx.arc(0,0,R*1.0, -sweepW/2, sweepW/2);
+  cctx.closePath();
+  const grd = cctx.createRadialGradient(0,0,0,0,0,R);
+  grd.addColorStop(0, color+'55');
+  grd.addColorStop(1, color+'00');
+  cctx.fillStyle = grd;
+  cctx.globalAlpha = 0.5;
+  cctx.fill();
+  cctx.restore();
+
+  // core orb
+  const pulse = 0.9 + 0.1*Math.sin(t*0.004*speed);
+  const orbR = R*0.34*pulse;
+  const orbGrad = cctx.createRadialGradient(cx,cy,0,cx,cy,orbR*2.6);
+  orbGrad.addColorStop(0, '#ffffff');
+  orbGrad.addColorStop(0.15, color);
+  orbGrad.addColorStop(1, color+'00');
+  cctx.fillStyle = orbGrad;
+  cctx.beginPath();
+  cctx.arc(cx,cy,orbR*2.6,0,Math.PI*2);
+  cctx.fill();
+
+  cctx.beginPath();
+  cctx.fillStyle = '#eaffff';
+  cctx.arc(cx,cy,orbR*0.55,0,Math.PI*2);
+  cctx.fill();
+
+  // orbiting nodes (representing interfaces/modules)
+  const nodeCount = 6;
+  for(let i=0;i<nodeCount;i++){
+    const a = time*0.4 + (i/nodeCount)*Math.PI*2;
+    const rr = R*0.95;
+    const nx = cx+Math.cos(a)*rr, ny = cy+Math.sin(a)*rr*0.94;
+    cctx.beginPath();
+    cctx.fillStyle = color;
+    cctx.globalAlpha = 0.85;
+    cctx.arc(nx,ny,2.4,0,Math.PI*2);
+    cctx.fill();
+    cctx.globalAlpha = 0.2;
+    cctx.beginPath();
+    cctx.moveTo(cx,cy);
+    cctx.lineTo(nx,ny);
+    cctx.strokeStyle = color;
+    cctx.lineWidth=0.6;
+    cctx.stroke();
+  }
+  cctx.globalAlpha = 1;
+
+  requestAnimationFrame(drawCore);
+}
+requestAnimationFrame(drawCore);
+
+/* ================= LIVE-ISH METRICS ================= */
+function jitter(el, base, spread, suffix){
+  const v = Math.max(0, Math.round(base + (Math.random()-0.5)*spread));
+  document.getElementById(el).textContent = v + (suffix||'');
+}
+setInterval(()=>{
+  jitter('vecCount', 18200, 40, '');
+  jitter('vecLatency', 42, 12, 'ms');
+  jitter('cpuLoad', 31, 14, '%');
+  document.getElementById('bar-brain').style.width = (55+Math.random()*30)+'%';
+  document.getElementById('bar-memory').style.width = (30+Math.random()*30)+'%';
+  document.getElementById('bar-planner').style.width = (10+Math.random()*25)+'%';
+}, 2200);
+
+/* ================= CONSOLE LOGIC ================= */
+const log = document.getElementById('log');
+const input = document.getElementById('cmdInput');
+const coreStateLabel = document.getElementById('coreState');
+const taskQueueEl = document.getElementById('taskQueue');
+
+function addLine(tag, msg, cls){
+  const div = document.createElement('div');
+  div.className = 'log-line ' + cls;
+  div.innerHTML = `<span class="tag">[${tag}]</span> <span class="msg"></span>`;
+  div.querySelector('.msg').textContent = msg;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setState(s, label){
+  agentState = s;
+  coreStateLabel.textContent = label;
+  coreStateLabel.style.color = stateColor[s];
+}
+
+const routes = [
+  {match:/search|web|news|look ?up/i, module:'interfaces/web.py', verb:'querying external web sources'},
+  {match:/remember|recall|memory|context/i, module:'core/memory.py', verb:'retrieving from vector store'},
+  {match:/code|debug|write.*script|function/i, module:'control/developer.py', verb:'generating and validating code'},
+  {match:/plan|schedule|steps|break ?down/i, module:'core/planner.py', verb:'decomposing task into an action sequence'},
+  {match:/look|see|image|screen/i, module:'interfaces/vision.py', verb:'running vision analysis'},
+  {match:/say|speak|voice/i, module:'interfaces/voice.py', verb:'synthesizing speech output'},
+];
+
+let queued = 0;
+function updateQueue(n){ queued = Math.max(0,n); taskQueueEl.textContent = queued; }
+
+input.addEventListener('keydown', (e)=>{
+  if(e.key!=='Enter') return;
+  const val = input.value.trim();
+  if(!val) return;
+  input.value='';
+  addLine('YOU', val, 'user');
+  updateQueue(queued+1);
+
+  const route = routes.find(r=>r.match.test(val)) || {module:'core/brain.py', verb:'reasoning over the request'};
+
+  setState('thinking','THINKING');
+  addLine('ULTRON', `routing directive → ${route.module}`, 'think');
+
+  setTimeout(()=>{
+    setState('executing','EXECUTING');
+    addLine('ULTRON', route.verb + '…', 'think');
+  }, 900);
+
+  setTimeout(()=>{
+    setState('idle','IDLE');
+    addLine('ULTRON', `directive complete via ${route.module}. standing by.`, 'system');
+    updateQueue(queued>0?queued-1:0);
+  }, 2100);
+});
+  
+// boot sequence
+const boot = [
+  ['SYS','ultron kernel v0.9 initializing…','system'],
+  ['SYS','loading core/brain.py … OK','system'],
+  ['SYS','loading core/memory.py … OK','system'],
+  ['SYS','loading core/planner.py … OK','system'],
+  ['SYS','mounting interfaces: voice, vision, web, text … OK','system'],
+  ['SYS','plugin manager: 6 plugins registered','system'],
+  ['ULTRON','all systems nominal. awaiting your command.','system'],
+];
+boot.forEach((b,i)=>{
+  setTimeout(()=> addLine(b[0], b[1], b[2]), i*260);
+});
+</script>
+</body>
+</html>
+
